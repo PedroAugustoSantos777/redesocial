@@ -3,62 +3,67 @@
 
 require_once __DIR__ . "/../models/CurtidaModel.php";
 
-// Receber dados
+// RECEBER DADOS
 function receberDadosCurtida() {
     $dados = json_decode(file_get_contents("php://input"), true);
 
-    if (!is_array($dados)) {
+    if (
+        !is_array($dados) ||
+        !isset($dados["id_usuario"], $dados["id_publicacao"]) ||
+        !filter_var($dados["id_usuario"], FILTER_VALIDATE_INT) ||
+        !filter_var($dados["id_publicacao"], FILTER_VALIDATE_INT) ||
+        $dados["id_usuario"] < 1 ||
+        $dados["id_publicacao"] < 1
+    ) {
         http_response_code(400);
-        echo json_encode(["erro" => "Envie um JSON válido"]);
+        echo json_encode(["erro" => "Informe os IDs corretamente"]);
         return null;
-    }
-
-    foreach (["id_usuario", "id_publicacao"] as $campo) {
-        if (!isset($dados[$campo]) ||
-            filter_var($dados[$campo], FILTER_VALIDATE_INT) === false ||
-            $dados[$campo] < 1) {
-
-            http_response_code(400);
-            echo json_encode(["erro" => "Informe $campo corretamente"]);
-            return null;
-        }
     }
 
     return $dados;
 }
 
-// CREATE - Curtir
+// CREATE - CURTIR
 function createCurtida($con) {
     $dados = receberDadosCurtida();
 
     if ($dados === null) return;
 
-    inserirCurtida($con, $dados);
+    $resultado = inserirCurtida($con, $dados);
+
+    if ($resultado === false) {
+        http_response_code(409);
+        echo json_encode(["erro" => "Você já curtiu esta publicação"]);
+        return;
+    }
 
     http_response_code(201);
+
     echo json_encode([
         "mensagem" => "Publicação curtida com sucesso!"
     ]);
 }
 
-// READ - Listar
+// READ - LISTAR
 function readCurtida($con) {
     echo json_encode(listarCurtidas($con));
 }
 
-// DELETE - Descurtir
+// DELETE - DESCURTIR
 function deleteCurtida($con) {
     $dados = receberDadosCurtida();
 
     if ($dados === null) return;
 
-    removerCurtida(
+    $quantidade = removerCurtida(
         $con,
         $dados["id_usuario"],
         $dados["id_publicacao"]
     );
 
     echo json_encode([
-        "mensagem" => "Curtida removida com sucesso!"
+        "mensagem" => $quantidade > 0
+            ? "Curtida removida com sucesso!"
+            : "Curtida não encontrada"
     ]);
 }

@@ -4,36 +4,51 @@
 // CREATE
 function inserirPublicacao($con, $dados) {
     $stmt = $con->prepare(
-        "INSERT INTO publicacoes (id_usuario, conteudo)
-         VALUES (?, ?)"
+        "INSERT INTO Publicacoes (id_usuario, legenda, imagem_url)
+         VALUES (?, ?, ?)"
     );
 
     $stmt->execute([
         $dados["id_usuario"],
-        $dados["conteudo"]
+        $dados["legenda"],
+        $dados["imagem_url"] ?? null
     ]);
 
     return $con->lastInsertId();
 }
 
-// READ
+// FEED
 function listarPublicacoes($con) {
     $stmt = $con->query(
-        "SELECT * FROM publicacoes ORDER BY id_publicacao DESC"
+        "SELECT
+            p.id_publicacao,
+            p.id_usuario,
+            u.username,
+            p.legenda,
+            p.imagem_url,
+            (SELECT COUNT(*)
+             FROM Curtidas c
+             WHERE c.id_publicacao = p.id_publicacao) AS total_curtidas
+         FROM Publicacoes p
+         INNER JOIN Usuarios u
+         ON p.id_usuario = u.id_usuario
+         ORDER BY p.id_publicacao DESC"
     );
 
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return $stmt->fetchAll();
 }
 
 // UPDATE
 function atualizarPublicacao($con, $id, $dados) {
     $stmt = $con->prepare(
-        "UPDATE publicacoes SET conteudo = ?
+        "UPDATE Publicacoes
+         SET legenda = ?, imagem_url = ?
          WHERE id_publicacao = ?"
     );
 
     $stmt->execute([
-        $dados["conteudo"],
+        $dados["legenda"],
+        $dados["imagem_url"] ?? null,
         $id
     ]);
 }
@@ -41,7 +56,7 @@ function atualizarPublicacao($con, $id, $dados) {
 // DELETE
 function removerPublicacao($con, $id) {
     $stmt = $con->prepare(
-        "DELETE FROM publicacoes WHERE id_publicacao = ?"
+        "DELETE FROM Publicacoes WHERE id_publicacao = ?"
     );
 
     $stmt->execute([$id]);
